@@ -89,6 +89,7 @@ int main()
             /* Clear interrupt */
             pending_interrupt &= ~INTERRUPT_MASK_RTC;
         }
+        
 
         /* Button interrupt handler */
         if ((pending_interrupt & INTERRUPT_MASK_BUTTON) == INTERRUPT_MASK_BUTTON)

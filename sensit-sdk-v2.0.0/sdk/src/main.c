@@ -1,37 +1,28 @@
-/*!******************************************************************
- * \file main_TEMPERATURE.c
- * \brief Sens'it Discovery mode Temperature demonstration code
- * \author Sens'it Team
- * \copyright Copyright (c) 2018 Sigfox, All Rights Reserved.
- *
- * For more information on this firmware, see temperature.md.
- *******************************************************************/
-/******* INCLUDES **************************************************/
 #include "sensit_types.h"
 #include "sensit_api.h"
 #include "error.h"
 #include "button.h"
 #include "battery.h"
 #include "radio_api.h"
-#include "hts221.h"
+#include "ltr329.h"
 #include "discovery.h"
 
 
-/******** DEFINES **************************************************/
-#define MEASUREMENT_PERIOD                 3600 /* Measurement & Message sending period, in second */
+
+#define MEASUREMENT_PERIOD                 3600 
 
 
-/******* GLOBAL VARIABLES ******************************************/
-u8 firmware_version[] = "TEMP_v2.0.0";
+
+u8 firmware_version[] = "LIGHT_v2.0.0";
 
 
-/*******************************************************************/
 
 int main()
 {
     error_t err;
     button_e btn;
     bool send = FALSE;
+    u16 trash;
 
     /* Discovery payload variable */
     discovery_data_s data = {0};
@@ -46,8 +37,8 @@ int main()
     err = RADIO_API_init();
     ERROR_parser(err);
 
-    /* Initialize temperature & humidity sensor */
-    err = HTS221_init();
+    /* Initialize light sensor */
+    err = LTR329_init();
     ERROR_parser(err);
 
     /* Initialize RTC alarm timer */
@@ -68,9 +59,14 @@ int main()
         /* RTC alarm interrupt handler */
         if ((pending_interrupt & INTERRUPT_MASK_RTC) == INTERRUPT_MASK_RTC)
         {
-            /* Do a temperatue & relative humidity measurement */
-            err = HTS221_measure(&(data.temperature), &(data.humidity));
-            if (err != HTS221_ERR_NONE)
+            /* Active light sensor */
+            LTR329_set_active_mode(LTR329_GAIN_96X);
+            /* Do a brightness measurement */
+            err = LTR329_measure(&(data.brightness), &trash);
+            /* Sensor back in standby mode */
+            LTR329_set_standby_mode();
+
+            if (err != LTR329_ERR_NONE)
             {
                 ERROR_parser(err);
             }
@@ -83,12 +79,13 @@ int main()
             /* Clear interrupt */
             pending_interrupt &= ~INTERRUPT_MASK_RTC;
         }
+        
 
         /* Button interrupt handler */
         if ((pending_interrupt & INTERRUPT_MASK_BUTTON) == INTERRUPT_MASK_BUTTON)
         {
             /* RGB Led ON during count of button presses */
-            SENSIT_API_set_rgb_led(RGB_GREEN);
+            SENSIT_API_set_rgb_led(RGB_YELLOW);
 
             /* Count number of presses */
             btn = BUTTON_handler();
@@ -132,10 +129,10 @@ int main()
         if (send == TRUE)
         {
             /* Build the payload */
-            DISCOVERY_build_payload(&payload, MODE_TEMPERATURE, &data);
+            DISCOVERY_build_payload(&payload, MODE_LIGHT, &data);
 
             /* Send the message */
-            err = RADIO_API_send_message(RGB_GREEN, (u8*)&payload, DISCOVERY_PAYLOAD_SIZE, FALSE, NULL);
+            err = RADIO_API_send_message(RGB_YELLOW, (u8*)&payload, DISCOVERY_PAYLOAD_SIZE, FALSE, NULL);
             /* Parse the error code */
             ERROR_parser(err);
 
